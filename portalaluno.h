@@ -16,7 +16,7 @@ public:
     ~PortalAluno();
 
 private slots:
-    void on_pushButton_clicked();
+    void on_btn_avancarAbaFaculdade_clicked();
 
     void on_btn_avancarAbaAlunos_clicked();
 
