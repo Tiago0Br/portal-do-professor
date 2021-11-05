@@ -1,6 +1,6 @@
 QT       += core gui
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets printsupport
 
 CONFIG += c++11
 
@@ -10,13 +10,16 @@ CONFIG += c++11
 
 SOURCES += \
     main.cpp \
-    portalaluno.cpp
+    portalaluno.cpp \
+    sobre.cpp
 
 HEADERS += \
-    portalaluno.h
+    portalaluno.h \
+    sobre.h
 
 FORMS += \
-    portalaluno.ui
+    portalaluno.ui \
+    sobre.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
