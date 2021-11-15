@@ -16,17 +16,23 @@ public:
     ~PortalAluno();
 
 private slots:
-    void on_btn_avancarAbaFaculdade_clicked();
-
-    void on_btn_avancarAbaAlunos_clicked();
-
-    void on_btn_avancarAbaDisciplina_clicked();
-
-    void on_btn_home_clicked();
-
     void on_btn_gerarPdf_clicked();
-
     void on_btnAbout_clicked();
+    void on_btn_faculdade_clicked();
+    void on_btn_voltar_clicked();
+    void on_btn_aluno_clicked();
+    void on_btn_curso_clicked();
+    void on_btn_salvaCurso_clicked();
+    void on_btn_disciplinas_clicked();
+    void on_btn_salvarDisciplina_clicked();
+    void on_combo_cursos_currentIndexChanged(int index);
+    void on_btn_salvaFaculdade_clicked();
+    void on_btn_salvaAluno_clicked();
+    void on_btn_notas_clicked();
+    void on_combo_alunos_currentIndexChanged(int index);
+    void on_btn_salvaNotas_clicked();
+
+    void on_btn_lancarMaisNotas_clicked();
 
 private:
     Ui::PortalAluno *ui;
