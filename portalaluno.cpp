@@ -333,6 +333,8 @@ void PortalAluno::on_btn_pesquisar_clicked()
     int tipoCadastro = ui->combo_cadastros->currentIndex(); // 0 - Cursos, 1- Disciplinas, 2 - Alunos
     ui->tabelaCadastros->clear();
     ui->tabelaCadastros->setRowCount(0);
+    ui->tabelaCadastros->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
     switch (tipoCadastro) {
         case 0:
             adicionarCursosNaTabela(ui, cursosCadastrados);
