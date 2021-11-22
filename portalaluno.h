@@ -19,7 +19,6 @@ private slots:
     void on_btn_gerarPdf_clicked();
     void on_btnAbout_clicked();
     void on_btn_faculdade_clicked();
-    void on_btn_voltar_clicked();
     void on_btn_aluno_clicked();
     void on_btn_curso_clicked();
     void on_btn_salvaCurso_clicked();
@@ -31,8 +30,11 @@ private slots:
     void on_btn_notas_clicked();
     void on_combo_alunos_currentIndexChanged(int index);
     void on_btn_salvaNotas_clicked();
-
     void on_btn_lancarMaisNotas_clicked();
+    void on_combo_disciplinas_currentIndexChanged(QString value);
+    void on_btn_pesquisar_clicked();
+    void on_btn_visualizarCadastros_clicked();
+    void on_btn_gerarPdfCadastros_clicked();
 
 private:
     Ui::PortalAluno *ui;
