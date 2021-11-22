@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QUrl>
 #include <QDesktopServices>
+#include <QDate>
 #define ABA_INICIO 0
 #define ABA_FACULDADE 1
 #define ABA_CURSO 2
@@ -15,10 +16,11 @@
 #define ABA_ALUNO 4
 #define ABA_NOTAS 5
 #define ABA_TABELA 6
+#define ABA_LISTAGEM 7
 
-// Declaração das variáveis
-int quant_disciplinas = 0;
-int quant_alunos = 0;
+// Declaração das variáveis e Structs
+QDate *date = new QDate();
+
 struct Disciplina {
     QString nome;
     QString professor;
@@ -60,25 +62,26 @@ QVector<Disciplina> disciplinasCadastradas;
 QVector<Aluno> alunosCadastrados;
 
 // Declaração dos métodos auxiliadores utilizados
+void setup(Ui::PortalAluno *ui);
 void alertaCamposEmBranco(PortalAluno *instancia);
 void selecionarAba(Ui::PortalAluno *ui, int aba);
 float calculaMediaPonderada(float n1, float n2, float n3);
 void adicionarDadosNaTabela(Ui::PortalAluno *ui, Faculdade faculdade);
 void gerarPDF(PortalAluno *instancia, Faculdade faculdade);
 void acessarTelaInicial(Ui::PortalAluno *ui);
+void adicionarCursosNaTabela(Ui::PortalAluno *ui, QVector<Curso> cursos);
+void adicionarDisciplinasNaTabela(Ui::PortalAluno *ui, QVector<Disciplina> disciplinas);
+void adicionarAlunosNaTabela(Ui::PortalAluno *ui, QVector<Aluno> alunos);
+void gerarPDF_alunosCadastrados(PortalAluno *instancia, QVector<Aluno> alunos);
+void gerarPDF_cursosCadastrados(PortalAluno *instancia, QVector<Curso> cursos);
+void gerarPDF_disciplinasCadastradas(PortalAluno *instancia, QVector<Disciplina> disciplinas);
 
 PortalAluno::PortalAluno(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::PortalAluno)
 {
     ui->setupUi(this);
-    selecionarAba(ui, ABA_INICIO);
-    ui->tabWidget->setTabEnabled(ABA_FACULDADE, false);
-    ui->tabWidget->setTabEnabled(ABA_ALUNO, false);
-    ui->tabWidget->setTabEnabled(ABA_CURSO, false);
-    ui->tabWidget->setTabEnabled(ABA_DISCIPLINA, false);
-    ui->tabWidget->setTabEnabled(ABA_NOTAS, false);
-    ui->tabWidget->setTabEnabled(ABA_TABELA, false);
+    setup(ui);
 }
 
 PortalAluno::~PortalAluno()
@@ -112,11 +115,6 @@ void PortalAluno::on_btn_salvaFaculdade_clicked()
     }
 }
 
-void PortalAluno::on_btn_voltar_clicked()
-{
-    acessarTelaInicial(ui);
-}
-
 //  CADASTRO DE CURSOS
 void PortalAluno::on_btn_curso_clicked()
 {
@@ -138,7 +136,11 @@ void PortalAluno::on_btn_salvaCurso_clicked()
         curso.periodo = ui->combo_periodo->currentText();
         cursosCadastrados.push_back(curso);
 
-        int res = QMessageBox::question(this, "Cadastro efetuado", "Deseja adicionar mais cursos?", "Sim", "Não");
+        // Adicionando o curso cadastrado nos combos de Cursos
+        ui->combo_cursos->addItem(curso.nome);
+        ui->combo_cursos_2->addItem(curso.nome);
+
+        int res = QMessageBox::information(this, "Cadastro efetuado", "Deseja adicionar mais cursos?", "Sim", "Não");
         // 0 para "Sim" e 1 para "Não"
         if(res == 1) {
             acessarTelaInicial(ui);
@@ -151,14 +153,9 @@ void PortalAluno::on_btn_salvaCurso_clicked()
 // CADASTRO DE DISCIPLINAS
 void PortalAluno::on_btn_disciplinas_clicked()
 {
-    if(faculdade.nome == "" || cursosCadastrados.length() == 0) {
+    if(faculdade.nome == "" || cursosCadastrados.empty()) {
         QMessageBox::warning(this, "Informações faltando", "Deve ser cadastrada a faculdade e pelo menos um curso.");
     } else {
-        // Populando o combo de cursos com os cursos cadastrados
-        ui->combo_cursos_2->clear();
-        for (int i = 0; i < cursosCadastrados.length(); i++) {
-            ui->combo_cursos_2->addItem(cursosCadastrados.at(i).nome);
-        }
         selecionarAba(ui, ABA_DISCIPLINA);
     }
 }
@@ -173,7 +170,7 @@ void PortalAluno::on_btn_salvarDisciplina_clicked()
         disciplina.professor = ui->txt_professor->text();
         disciplinasCadastradas.push_back(disciplina);
 
-        int res = QMessageBox::question(this, "Cadastro efetuado", "Deseja adicionar mais disciplinas?", "Sim", "Não");
+        int res = QMessageBox::information(this, "Cadastro efetuado", "Deseja adicionar mais disciplinas?", "Sim", "Não");
         // 0 para "Sim" e 1 para "Não"
         if(res == 1) {
             acessarTelaInicial(ui);
@@ -186,14 +183,9 @@ void PortalAluno::on_btn_salvarDisciplina_clicked()
 // CADASTRO DE ALUNOS
 void PortalAluno::on_btn_aluno_clicked()
 {
-    if(faculdade.nome == "") {
-        QMessageBox::warning(this, "Faculdade não informada", "Por favor, cadastre a faculdade primeiro.");
+    if(faculdade.nome == "" || cursosCadastrados.empty()) {
+        QMessageBox::warning(this, "Informações faltando", "Deve ser cadastrada a faculdade e pelo menos um curso.");
     } else {
-        // Populando o combo de cursos com os cursos cadastrados
-        ui->combo_cursos->clear();
-        for (int i = 0; i < cursosCadastrados.length(); i++) {
-            ui->combo_cursos->addItem(cursosCadastrados.at(i).nome);
-        }
         selecionarAba(ui, ABA_ALUNO);
     }
 }
@@ -201,6 +193,8 @@ void PortalAluno::on_btn_aluno_clicked()
 void PortalAluno::on_combo_cursos_currentIndexChanged(int index)
 {
     // Alterando as informações exibidas de acordo com o curso selecionado
+    if(index == -1) return;
+
     ui->lbl_nomeCurso->setText(cursosCadastrados.at(index).nome);
     ui->lbl_grauCurso->setText(cursosCadastrados.at(index).grau);
     ui->lbl_periodoCurso->setText(cursosCadastrados.at(index).periodo);
@@ -211,15 +205,19 @@ void PortalAluno::on_btn_salvaAluno_clicked()
     if(ui->txt_aluno->text() == "") {
         alertaCamposEmBranco(this);
     } else {
+        QDate dataNascimento = ui->data_nascimento->date();
         aluno.nome = ui->txt_aluno->text();
         aluno.RA = ui->sb_ra->value();
-        aluno.idade = 19;
+        aluno.idade = date->currentDate().year() - dataNascimento.year(); // Subtrai o ano atual pelo ano de nascimento do aluno
         aluno.sexo = ui->combo_sexo->currentText();
 
         int cursoSelecionadoID = ui->combo_cursos->currentIndex();
         aluno.curso = cursosCadastrados.at(cursoSelecionadoID);
         alunosCadastrados.push_back(aluno);
-        int res = QMessageBox::question(this, "Cadastro efetuado", "Deseja cadastrar mais alunos?", "Sim", "Não");
+        // Adicionando o aluno cadastrado nos combos de Cursos
+        ui->combo_alunos->addItem(aluno.nome);
+
+        int res = QMessageBox::information(this, "Cadastro efetuado", "Deseja cadastrar mais alunos?", "Sim", "Não");
         // 0 para "Sim" e 1 para "Não"
         if(res == 1) {
             acessarTelaInicial(ui);
@@ -231,14 +229,9 @@ void PortalAluno::on_btn_salvaAluno_clicked()
 // LANÇAMENTO DE NOTAS DOS ALUNOS
 void PortalAluno::on_btn_notas_clicked()
 {
-    if(alunosCadastrados.length() == 0) {
-        QMessageBox::warning(this, "Informações faltando", "Deve ser cadastrado pelo menos 1 aluno");
+    if(alunosCadastrados.empty()) {
+        QMessageBox::warning(this, "Informações faltando", "Deve ser cadastrado pelo menos um aluno.");
     } else {
-        // Populando o combo de alunos cadastrados
-        ui->combo_alunos->clear();
-        for (int i = 0; i < alunosCadastrados.length(); i++) {
-            ui->combo_alunos->addItem(alunosCadastrados.at(i).nome);
-        }
         selecionarAba(ui, ABA_NOTAS);
     }
 }
@@ -246,6 +239,7 @@ void PortalAluno::on_btn_notas_clicked()
 void PortalAluno::on_combo_alunos_currentIndexChanged(int index)
 {
     // Populando o combo de disciplinas de acordo com o curso do aluno selecionado
+    if(index == -1) return;
     ui->combo_disciplinas->clear();
     int indiceDoCurso = 0;
     ui->lbl_curso->setText(alunosCadastrados.at(index).curso.nome);
@@ -261,8 +255,25 @@ void PortalAluno::on_combo_alunos_currentIndexChanged(int index)
     }
 }
 
+// Exibindo o professor da disciplina que for escolhida
+void PortalAluno::on_combo_disciplinas_currentIndexChanged(QString value)
+{
+    if (value == "") return;
+    QString professor;
+    for (int i = 0; i < disciplinasCadastradas.length(); i++) {
+        if (disciplinasCadastradas.at(i).nome == value) {
+            professor = disciplinasCadastradas.at(i).professor;
+        }
+    }
+    ui->lbl_professor->setText(professor);
+}
+
 void PortalAluno::on_btn_salvaNotas_clicked()
 {
+    if(ui->combo_disciplinas->count() == 0) {
+        QMessageBox::warning(this, "Erro", "O curso desse aluno não possui disciplinas cadastradas");
+        return;
+    }
     int alunoID = ui->combo_alunos->currentIndex();
     aluno.nome = alunosCadastrados.at(alunoID).nome;
     aluno.RA = alunosCadastrados.at(alunoID).RA;
@@ -290,7 +301,7 @@ void PortalAluno::on_btn_salvaNotas_clicked()
 
     adicionarDadosNaTabela(ui, faculdade);
 
-    int res = QMessageBox::question(this, "Notas lançadas", "Deseja lançar mais notas?", "Sim", "Não");
+    int res = QMessageBox::information(this, "Notas lançadas", "Deseja lançar mais notas?", "Sim", "Não");
     // 0 para "Sim" e 1 para "Não"
     if(res == 1) {
         selecionarAba(ui, ABA_TABELA);
@@ -311,7 +322,58 @@ void PortalAluno::on_btn_gerarPdf_clicked()
     gerarPDF(this, faculdade);
 }
 
-// Implementação dos métodos auxiliadores
+// LISTAGEM DOS CADASTROS
+void PortalAluno::on_btn_visualizarCadastros_clicked()
+{
+    selecionarAba(ui, ABA_LISTAGEM);
+}
+
+void PortalAluno::on_btn_pesquisar_clicked()
+{
+    int tipoCadastro = ui->combo_cadastros->currentIndex(); // 0 - Cursos, 1- Disciplinas, 2 - Alunos
+    ui->tabelaCadastros->clear();
+    ui->tabelaCadastros->setRowCount(0);
+    switch (tipoCadastro) {
+        case 0:
+            adicionarCursosNaTabela(ui, cursosCadastrados);
+            break;
+        case 1:
+            adicionarDisciplinasNaTabela(ui, disciplinasCadastradas);
+            break;
+        case 2:
+            adicionarAlunosNaTabela(ui, alunosCadastrados);
+            break;
+    }
+}
+// Exportação em PDF
+void PortalAluno::on_btn_gerarPdfCadastros_clicked()
+{
+    int tipoCadastro = ui->combo_cadastros->currentIndex(); // 0 - Cursos, 1- Disciplinas, 2 - Alunos
+    switch (tipoCadastro) {
+        case 0:
+            gerarPDF_cursosCadastrados(this, cursosCadastrados);
+            break;
+        case 1:
+        gerarPDF_disciplinasCadastradas(this, disciplinasCadastradas);
+            break;
+        case 2:
+            gerarPDF_alunosCadastrados(this, alunosCadastrados);
+            break;
+    }
+}
+
+// IMPLEMENTAÇÃO DOS MÉTODOS AUXILIADORES
+void setup(Ui::PortalAluno *ui) {
+    selecionarAba(ui, ABA_INICIO);
+    ui->tabWidget->setTabEnabled(ABA_FACULDADE, false);
+    ui->tabWidget->setTabEnabled(ABA_ALUNO, false);
+    ui->tabWidget->setTabEnabled(ABA_CURSO, false);
+    ui->tabWidget->setTabEnabled(ABA_DISCIPLINA, false);
+    ui->tabWidget->setTabEnabled(ABA_NOTAS, false);
+    ui->tabWidget->setTabEnabled(ABA_TABELA, false);
+    ui->tabWidget->setTabEnabled(ABA_LISTAGEM, false);
+}
+
 void alertaCamposEmBranco(PortalAluno *instancia) {
     QMessageBox::critical(instancia, "Campos obrigatórios em branco!", "Por favor, preencha todos os campos.");
 }
@@ -345,8 +407,7 @@ void adicionarDadosNaTabela(Ui::PortalAluno *ui, Faculdade faculdade) {
     QTableWidgetItem *media;
     QTableWidgetItem *situacao;
 
-    int i = faculdade.alunos.length()-1;
-
+    // Configurando tamanho das colunas
     ui->tableWidget->setColumnWidth(COL_CURSO, 200);
     ui->tableWidget->setColumnWidth(COL_DISCIPLINA, 170);
     ui->tableWidget->setColumnWidth(COL_N1, 10);
@@ -354,9 +415,11 @@ void adicionarDadosNaTabela(Ui::PortalAluno *ui, Faculdade faculdade) {
     ui->tableWidget->setColumnWidth(COL_N3, 10);
     ui->tableWidget->setColumnWidth(COL_MEDIA, 10);
 
-    // Configurando para não permitir edição dos dados pela tabela
+    // Configuração para não permitir edição dos dados pela tabela
     ui->tableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
+    // Adiciona uma nova linha no final e preenche com os novos dados
+    int i = faculdade.alunos.length()-1;
     ui->tableWidget->insertRow(i);
     aluno =       new QTableWidgetItem(faculdade.alunos.at(i).nome);
     curso =       new QTableWidgetItem(faculdade.alunos.at(i).curso.nome);
@@ -378,10 +441,9 @@ void adicionarDadosNaTabela(Ui::PortalAluno *ui, Faculdade faculdade) {
 }
 
 void gerarPDF(PortalAluno *instancia, Faculdade faculdade) {
-    QString nomeArquivo = QDir::currentPath() + "/relatorio_alunos.pdf";
     QPrinter printer;
     QPainter painter;
-
+    QString nomeArquivo = QDir::currentPath() + "/relatorio_notas.pdf";
     printer.setOutputFormat(QPrinter::PdfFormat);
     printer.setOutputFileName(nomeArquivo);
 
@@ -423,24 +485,6 @@ void gerarPDF(PortalAluno *instancia, Faculdade faculdade) {
 
             linha+=20;
         }
-
-        const int COL_NOME = 25;
-        const int COL_RA = 175;
-        const int COL_IDADE = 315;
-        const int COL_SEXO = 425;
-
-        linha+=50;
-        painter.drawText(320, linha, "INFORMAÇÕES PESSOAIS DOS ALUNOS:");
-
-        linha+=30;
-        for (int i = 0; i < faculdade.alunos.length(); i++) {
-            painter.drawText(COL_NOME, linha, faculdade.alunos.at(i).nome);
-            painter.drawText(COL_RA, linha, QString::number(faculdade.alunos.at(i).RA));
-            painter.drawText(COL_IDADE, linha, "22");
-            painter.drawText(COL_SEXO, linha, faculdade.alunos.at(i).sexo);
-            linha+=20;
-        }
-
         painter.end();
 
         QDesktopServices::openUrl(QUrl("file:///" + nomeArquivo));
@@ -448,7 +492,232 @@ void gerarPDF(PortalAluno *instancia, Faculdade faculdade) {
 }
 
 void acessarTelaInicial(Ui::PortalAluno *ui) {
-    int abaAtual = ui->tabWidget->currentIndex();
     ui->tabWidget->setCurrentIndex(ABA_INICIO);
-    ui->tabWidget->setTabEnabled(abaAtual, false);
+}
+
+void adicionarCursosNaTabela(Ui::PortalAluno *ui, QVector<Curso> cursos) {
+    QStringList cabecalhoCursos = {"Nome", "Grau", "Periodo"};
+    QTableWidgetItem *nome;
+    QTableWidgetItem *grau;
+    QTableWidgetItem *periodo;
+
+    const int COL_NOME = 0;
+    const int COL_GRAU = 1;
+    const int COL_PERIODO = 2;
+
+    ui->tabelaCadastros->setColumnCount(3);
+    ui->tabelaCadastros->setHorizontalHeaderLabels(cabecalhoCursos);
+    ui->tabelaCadastros->setColumnWidth(COL_NOME, 230);
+    ui->tabelaCadastros->setColumnWidth(COL_GRAU, 230);
+    ui->tabelaCadastros->setColumnWidth(COL_PERIODO, 230);
+
+    for (int i = 0; i < cursos.length(); i++) {
+        nome = new QTableWidgetItem(cursos.at(i).nome);
+        grau = new QTableWidgetItem(cursos.at(i).grau);
+        periodo = new QTableWidgetItem(cursos.at(i).periodo);
+
+        ui->tabelaCadastros->insertRow(i);
+        ui->tabelaCadastros->setItem(i, COL_NOME, nome);
+        ui->tabelaCadastros->setItem(i, COL_GRAU, grau);
+        ui->tabelaCadastros->setItem(i, COL_PERIODO, periodo);
+    }
+}
+
+void adicionarDisciplinasNaTabela(Ui::PortalAluno *ui, QVector<Disciplina> disciplinas) {
+    QStringList cabecalhoDisciplinas = {"Nome", "Professor", "Curso"};
+    QTableWidgetItem *nome;
+    QTableWidgetItem *professor;
+    QTableWidgetItem *curso;
+    QString cursoDisciplina;
+
+    const int COL_NOME = 0;
+    const int COL_PROF = 1;
+    const int COL_CURSO = 2;
+
+    ui->tabelaCadastros->setColumnCount(3);
+    ui->tabelaCadastros->setHorizontalHeaderLabels(cabecalhoDisciplinas);
+    ui->tabelaCadastros->setColumnWidth(COL_NOME, 230);
+    ui->tabelaCadastros->setColumnWidth(COL_PROF, 230);
+    ui->tabelaCadastros->setColumnWidth(COL_CURSO, 230);
+
+    for (int i = 0; i < disciplinas.length(); i++) {
+        nome = new QTableWidgetItem(disciplinas.at(i).nome);
+        professor = new QTableWidgetItem(disciplinas.at(i).professor);
+        cursoDisciplina = cursosCadastrados.at(disciplinas.at(i).pertenceAoCursoID).nome;
+        curso = new QTableWidgetItem(cursoDisciplina);
+
+        ui->tabelaCadastros->insertRow(i);
+        ui->tabelaCadastros->setItem(i, COL_NOME, nome);
+        ui->tabelaCadastros->setItem(i, COL_PROF, professor);
+        ui->tabelaCadastros->setItem(i, COL_CURSO, curso);
+    }
+}
+
+void adicionarAlunosNaTabela(Ui::PortalAluno *ui, QVector<Aluno> alunos) {
+    QStringList cabecalhoAlunos = {"Nome", "RA", "Sexo", "Idade", "Curso"};
+    QTableWidgetItem *nome;
+    QTableWidgetItem *ra;
+    QTableWidgetItem *sexo;
+    QTableWidgetItem *idade;
+    QTableWidgetItem *curso;
+
+    const int COL_NOME = 0;
+    const int COL_RA = 1;
+    const int COL_SEXO = 2;
+    const int COL_IDADE = 3;
+    const int COL_CURSO = 4;
+
+    ui->tabelaCadastros->setColumnCount(5);
+    ui->tabelaCadastros->setHorizontalHeaderLabels(cabecalhoAlunos);
+    ui->tabelaCadastros->setColumnWidth(COL_NOME, 230);
+    ui->tabelaCadastros->setColumnWidth(COL_RA, 90);
+    ui->tabelaCadastros->setColumnWidth(COL_SEXO, 90);
+    ui->tabelaCadastros->setColumnWidth(COL_IDADE, 50);
+    ui->tabelaCadastros->setColumnWidth(COL_CURSO, 230);
+
+    for (int i = 0; i < alunos.length(); i++) {
+        nome = new QTableWidgetItem(alunos.at(i).nome);
+        ra = new QTableWidgetItem(QString::number(alunos.at(i).RA));
+        sexo = new QTableWidgetItem(alunos.at(i).sexo);
+        idade = new QTableWidgetItem(QString::number(alunos.at(i).idade));
+        curso = new QTableWidgetItem(alunos.at(i).curso.nome);
+
+        ui->tabelaCadastros->insertRow(i);
+        ui->tabelaCadastros->setItem(i, COL_NOME, nome);
+        ui->tabelaCadastros->setItem(i, COL_RA, ra);
+        ui->tabelaCadastros->setItem(i, COL_SEXO, sexo);
+        ui->tabelaCadastros->setItem(i, COL_IDADE, idade);
+        ui->tabelaCadastros->setItem(i, COL_CURSO, curso);
+    }
+}
+
+void gerarPDF_cursosCadastrados(PortalAluno *instancia, QVector<Curso> cursos) {
+    if(cursos.empty()) {
+        QMessageBox::warning(instancia, "Arquivo não gerado", "Não tem cursos cadastrados.");
+        return;
+    }
+    QPrinter printer;
+    QPainter painter;
+    QString nomeArquivo = QDir::currentPath() + "/relatorio_cursos.pdf";
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(nomeArquivo);
+
+    if (!painter.begin(&printer)) {
+        QMessageBox::critical(instancia, "Arquivo não gerado", "Desculpe, não foi possível gerar o PDF!");
+        return;
+    }
+    int linha = 80;
+    const int COL_NOME = 25;
+    const int COL_GRAU = 240;
+    const int COL_PERIODO = 380;
+
+    painter.drawText(320, linha, faculdade.nome.toUpper());
+    linha+=50;
+    painter.drawText(320, linha, "CURSOS CADASTRADOS NO SISTEMA");
+    linha+=30;
+
+    painter.drawText(COL_NOME, linha, "NOME");
+    painter.drawText(COL_GRAU, linha, "GRAU DE ENSINO");
+    painter.drawText(COL_PERIODO, linha, "PERÍODO");
+    linha+=30;
+
+    for (int i = 0; i < cursos.length(); i++) {
+        painter.drawText(COL_NOME, linha, cursos.at(i).nome);
+        painter.drawText(COL_GRAU, linha, cursos.at(i).grau);
+        painter.drawText(COL_PERIODO, linha, cursos.at(i).periodo);
+        linha+=20;
+    }
+
+    painter.end();
+    QDesktopServices::openUrl(QUrl("file:///" + nomeArquivo));
+}
+
+void gerarPDF_disciplinasCadastradas(PortalAluno *instancia, QVector<Disciplina> disciplinas) {
+    if(disciplinas.empty()) {
+        QMessageBox::warning(instancia, "Arquivo não gerado", "Não tem disciplinas cadastradas.");
+        return;
+    }
+    QPrinter printer;
+    QPainter painter;
+    QString nomeArquivo = QDir::currentPath() + "/relatorio_disciplinas.pdf";
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(nomeArquivo);
+
+    if (!painter.begin(&printer)) {
+        QMessageBox::critical(instancia, "Arquivo não gerado", "Desculpe, não foi possível gerar o PDF!");
+        return;
+    }
+    int linha = 80;
+    const int COL_NOME = 25;
+    const int COL_PROF = 240;
+    const int COL_CURSO = 400;
+    int cursoID;
+
+    painter.drawText(320, linha, faculdade.nome.toUpper());
+    linha+=50;
+    painter.drawText(320, linha, "DISCIPLINAS CADASTRADAS NO SISTEMA");
+    linha+=30;
+
+    painter.drawText(COL_NOME, linha, "NOME");
+    painter.drawText(COL_PROF, linha, "PROFESSOR");
+    painter.drawText(COL_CURSO, linha, "CURSO");
+    linha+=30;
+
+    for (int i = 0; i < disciplinas.length(); i++) {
+        painter.drawText(COL_NOME, linha, disciplinas.at(i).nome);
+        painter.drawText(COL_PROF, linha, disciplinas.at(i).professor);
+        cursoID = disciplinas.at(i).pertenceAoCursoID;
+        painter.drawText(COL_CURSO, linha, cursosCadastrados.at(cursoID).nome);
+        linha+=20;
+    }
+
+    painter.end();
+    QDesktopServices::openUrl(QUrl("file:///" + nomeArquivo));
+}
+
+void gerarPDF_alunosCadastrados(PortalAluno *instancia, QVector<Aluno> alunos) {
+    if(alunos.empty()) {
+        QMessageBox::warning(instancia, "Arquivo não gerado", "Não tem alunos cadastrados.");
+        return;
+    }
+    QPrinter printer;
+    QPainter painter;
+    QString nomeArquivo = QDir::currentPath() + "/relatorio_alunos.pdf";
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName(nomeArquivo);
+
+    if (!painter.begin(&printer)) {
+        QMessageBox::critical(instancia, "Arquivo não gerado", "Desculpe, não foi possível gerar o PDF!");
+        return;
+    }
+    int linha = 80;
+    const int COL_NOME = 25;
+    const int COL_RA = 175;
+    const int COL_IDADE = 315;
+    const int COL_SEXO = 425;
+    const int COL_CURSO = 520;
+
+    painter.drawText(320, linha, faculdade.nome.toUpper());
+    linha+=50;
+    painter.drawText(320, linha, "ALUNOS CADASTRADOS NO SISTEMA");
+    linha+=30;
+
+    painter.drawText(COL_NOME, linha, "NOME");
+    painter.drawText(COL_RA, linha, "RA");
+    painter.drawText(COL_IDADE, linha, "IDADE");
+    painter.drawText(COL_SEXO, linha, "SEXO");
+    painter.drawText(COL_CURSO, linha, "CURSO");
+    linha+=30;
+
+    for (int i = 0; i < alunos.length(); i++) {
+        painter.drawText(COL_NOME, linha, alunos.at(i).nome);
+        painter.drawText(COL_RA, linha, QString::number(alunos.at(i).RA));
+        painter.drawText(COL_IDADE, linha, QString::number(alunos.at(i).idade));
+        painter.drawText(COL_SEXO, linha, alunos.at(i).sexo);
+        painter.drawText(COL_CURSO, linha, alunos.at(i).curso.nome);
+        linha+=20;
+    }
+
+    painter.end();
+    QDesktopServices::openUrl(QUrl("file:///" + nomeArquivo));
 }
